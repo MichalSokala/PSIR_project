@@ -11,5 +11,6 @@ int main() {
     for (int i = 0; i < 20; i++) {
         int rand_index = rand() % 2;
         printf("rand element: %s\n",list[rand_index]);
+        //print
     }
 }
