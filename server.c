@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
-
 int main() {
     const char *list[2];
     list[0] = "H";
