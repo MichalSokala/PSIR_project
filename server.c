@@ -15,23 +15,24 @@
 #define NUMBER_OF_GAMES 5
 
 
+typedef struct{
+    uint8_t msg_type :3;
+    uint8_t id :3;
+    uint8_t retr_flag :1;
+    uint8_t ack_flag :1;
+    uint8_t p_type :2;
+} Header;
 
-void generate_random_sequence(char *sequence, int length) {
-	for (int i = 0; i < length; i++) {
-		sequence[i] = (rand() % 2 == 0) ? 1 : 0;
-	}
-	sequence[length] = '\0';
-
+char toss_coin() {
+    return rand() % 2 ? 1 : 0;
 }
 
-void make_one_game() {
+void make_one_game(int sock) {
 	printf("Starting a new game...\n");
 
-	char sequence[SEQUENCE_LENGTH + 1];   // Array to store the sequence (+1 for null terminator)
-	generate_random_sequence(sequence, SEQUENCE_LENGTH);
+	uint8_t result = toss_coin();
 
-
-	printf("Generated sequence: %s\n", sequence);
+	printf("Outcome of toss: %s\n", result ? "H" : "T" );
 }
 
 int main() {
@@ -67,7 +68,7 @@ int main() {
 
 	printf("Generating random sequences of H and T:\n");
 	for (int i = 0; i < NUMBER_OF_GAMES; i++) {
-		make_one_game();
+		make_one_game(s);
 	}
 	freeaddrinfo(r);
 
