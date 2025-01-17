@@ -13,6 +13,7 @@
 #define SEQUENCE_LENGTH 10
 #define PORT "8080"
 #define NUMBER_OF_GAMES 5
+#define SYMBOL_GEN_INTERVAL 2
 
 
 typedef struct{
@@ -66,7 +67,7 @@ void make_one_game(int sock) {
 	    }
 
 	    current_time = get_time_s();
-	    if(current_time - last_time_tossed >= 2){
+	    if(current_time - last_time_tossed >= SYMBOL_GEN_INTERVAL){
 	        result = toss_coin();
 	        printf("Outcome of toss: %s\n", result ? "H" : "T" );
 
