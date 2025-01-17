@@ -27,12 +27,52 @@ char toss_coin() {
     return rand() % 2 ? 1 : 0;
 }
 
+double get_time_s(){
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + tv.tv_usec/1000000;
+}
+
+void pack_header(Header *header, uint8_t *buffer){
+    buffer[0] = (header->msg_type << 5) | (header->id << 2) | (header->retr_flag << 1) | header->ack_flag;
+    buffer[1] = (header->p_type << 6);
+}
+
+void unpack_header(uint8_t *buffer, Header *header){
+    header->msg_type = (buffer[0] >> 5) & 0x07;
+    header->id = (buffer[0] >> 2) & 0x07;
+    header->retr_flag = (buffer[0] >> 1) & 0x01;
+    header->ack_flag = buffer[0] & 0x01;
+    header->p_type = (buffer[1] >> 6) & 0x03;
+}
+
 void make_one_game(int sock) {
+    uint8_t result;
+    int select_res;
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 50000;
+    double last_time_tossed = 0, current_time;
+    fd_set readfs;
 	printf("Starting a new game...\n");
 
-	uint8_t result = toss_coin();
+	do{
+	    FD_ZERO(&readfs);
+	    FD_SET(sock, &readfs);
+	    select_res = select(sock + 1, &readfs, NULL, NULL, &tv);
+	    if(select_res){
+	        printf("ERROR: %s (%s:%d)\n", strerror(errno), __FILE__, __LINE__);
+	        break;
+	    }
 
-	printf("Outcome of toss: %s\n", result ? "H" : "T" );
+	    current_time = get_time_s();
+	    if(current_time - last_time_tossed >= 2){
+	        result = toss_coin();
+	        printf("Outcome of toss: %s\n", result ? "H" : "T" );
+
+	        last_time_tossed = current_time;
+        }
+	}while(1);
 }
 
 int main() {
@@ -57,21 +97,21 @@ int main() {
 	}
 	if (bind(s, r->ai_addr, r->ai_addrlen) != 0) {
 		printf("ERROR: %s (%s:%d)\n", strerror(errno), __FILE__, __LINE__);
-		close(s);
+        close(s);
 		exit(-1);
 	}
+
 //	recvfrom(); //
 //	sendto(); //
 
 	// Initialize random number generator
 	srand(time(NULL));
 
-	printf("Generating random sequences of H and T:\n");
 	for (int i = 0; i < NUMBER_OF_GAMES; i++) {
 		make_one_game(s);
 	}
-	freeaddrinfo(r);
 
+	freeaddrinfo(r);
 	close(s);
 	return 0;
 }
