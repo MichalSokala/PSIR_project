@@ -13,10 +13,11 @@
 #define TOSS_RESULT_MSG_TYPE 2
 #define PATTERN_MATCH_MSG_TYPE 3
 #define GAME_END_MSG_TYPE 4
+
 #define SEQUENCE_LENGTH 10
 #define PORT "8080"
 #define NUMBER_OF_GAMES 5
-
+#define MAX_PLAYERS 8
 #define SYMBOL_GEN_INTERVAL 2 // IN SECONDS
 
 typedef struct{
@@ -26,6 +27,11 @@ typedef struct{
     uint8_t ack_flag :1;
     uint8_t p_type :2;
 } Header;
+
+typedef struct{
+    uint8_t id;
+    struct sockaddr_in addr;
+} Player;
 
 char toss_coin() {
     return rand() % 2 ? 1 : 0;
@@ -50,7 +56,8 @@ void unpack_header(uint8_t *buffer, Header *header){
     header->p_type = (buffer[1] >> 6) & 0x03;
 }
 
-void register_client(){}
+void add_player(Header header){
+}
 void acknowledge_response(){}
 void save_winner(){}
 void make_one_game(int sock) {
@@ -90,10 +97,14 @@ void make_one_game(int sock) {
             payload = (buffer[1] & 0x63) | (buffer[2] >> SEQUENCE_LENGTH - 2);
         }
 
-        switch(header.msg_type){
-            case REGISTER_MSG_TYPE: register_client();
-            case TOSS_RESULT_MSG_TYPE: acknowledge_response();
-            case PATTERN_MATCH_MSG_TYPE: save_winner();
+        if(header.msg_type == REGISTER_MSG_TYPE){
+            add_client();
+        }else if(header.msg_type == TOSS_RESULT_MSG_TYPE && header.ack){
+            acknowledge_response(); // we process acks from nodes before we start another coin toss
+        }else if(header.msg_type == PATTERN_MATCH_MSG_TYPE){
+            save_winner
+        }else{
+            printf("Wrong type of message: %d", header.msg_type);
         }
 
         current_time = get_time_s();
@@ -108,9 +119,10 @@ void make_one_game(int sock) {
 int main() {
 	struct addrinfo h, *r = NULL;
 	memset(&h, 0, sizeof(struct addrinfo));
+
 	int s, game_counter = 0;
 	int client_count = 0;
-	bool is_game_running = false;
+	Player server_list[MAX_PLAYERS];
 
 	h.ai_family = PF_INET;
 	h.ai_socktype = SOCK_DGRAM;
