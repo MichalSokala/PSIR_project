@@ -9,12 +9,15 @@
 #include <stdbool.h>
 
 
-
+#define REGISTER_MSG_TYPE 1
+#define TOSS_RESULT_MSG_TYPE 2
+#define PATTERN_MATCH_MSG_TYPE 3
+#define GAME_END_MSG_TYPE 4
 #define SEQUENCE_LENGTH 10
 #define PORT "8080"
 #define NUMBER_OF_GAMES 5
-#define SYMBOL_GEN_INTERVAL 2
 
+#define SYMBOL_GEN_INTERVAL 2 // IN SECONDS
 
 typedef struct{
     uint8_t msg_type :3;
@@ -47,33 +50,59 @@ void unpack_header(uint8_t *buffer, Header *header){
     header->p_type = (buffer[1] >> 6) & 0x03;
 }
 
+void register_client(){}
+void acknowledge_response(){}
+void save_winner(){}
 void make_one_game(int sock) {
     uint8_t result;
-    int select_res;
+    uint16_t payload;
+    int select_res, recv_res, c_len = sizeof(c);
+    struct sockaddr_in c;
+    fd_set readfs;
+
     struct timeval tv;
     tv.tv_sec = 0;
     tv.tv_usec = 50000;
     double last_time_tossed = 0, current_time;
-    fd_set readfs;
-	printf("Starting a new game...\n");
 
-	do{
-	    FD_ZERO(&readfs);
-	    FD_SET(sock, &readfs);
-	    select_res = select(sock + 1, &readfs, NULL, NULL, &tv);
-	    if(select_res){
-	        printf("ERROR: %s (%s:%d)\n", strerror(errno), __FILE__, __LINE__);
-	        break;
-	    }
+    Header header;
+    printf("Starting a new game...\n");
 
-	    current_time = get_time_s();
-	    if(current_time - last_time_tossed >= SYMBOL_GEN_INTERVAL){
-	        result = toss_coin();
-	        printf("Outcome of toss: %s\n", result ? "H" : "T" );
-
-	        last_time_tossed = current_time;
+    do{
+        FD_ZERO(&readfs);
+        FD_SET(sock, &readfs);
+        select_res = select(sock + 1, &readfs, NULL, NULL, &tv);
+        if(select_res){
+            printf("ERROR: %s (%s:%d)\n", strerror(errno), __FILE__, __LINE__);
+            break;
         }
-	}while(1);
+
+        recv_res = recvfrom(s, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&c, &c_len);
+        if (recv_res < 0) {
+            printf("ERROR: %s (%s:%d)\n", strerror(errno), __FILE__, __LINE__);
+            exit(-1);
+        }
+
+        unpack_header(buffer, header);
+        if(header.p_type == 1){
+            payload = (buffer[1] & 0x63) | buffer[2];
+        }else if(header.p_type == 2){
+            payload = (buffer[1] & 0x63) | (buffer[2] >> SEQUENCE_LENGTH - 2);
+        }
+
+        switch(header.msg_type){
+            case REGISTER_MSG_TYPE: register_client();
+            case TOSS_RESULT_MSG_TYPE: acknowledge_response();
+            case PATTERN_MATCH_MSG_TYPE: save_winner();
+        }
+
+        current_time = get_time_s();
+	    if(current_time - last_time_tossed >= SYMBOL_GEN_INTERVAL){
+            result = toss_coin();
+            printf("Outcome of toss: %s\n", result ? "H" : "T" );
+            last_time_tossed = current_time;
+        }
+    }while(1);
 }
 
 int main() {
@@ -102,10 +131,6 @@ int main() {
 		exit(-1);
 	}
 
-//	recvfrom(); //
-//	sendto(); //
-
-	// Initialize random number generator
 	srand(time(NULL));
 
 	for (int i = 0; i < NUMBER_OF_GAMES; i++) {
