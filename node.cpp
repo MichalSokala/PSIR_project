@@ -12,6 +12,7 @@
 #define CLIENT_ID 1
 #define EMPTY_PACKAGE_TYPE 0
 #define MAX_REGISTER_PACKET_LEN 2
+#define SEQUENCE_LENGTH 10
 //#define GAME_END_MSG_TYPE 4 //zalezy czy chcemy wysylac info ze gra sie konczy
 
 #define PORT 8080
@@ -22,7 +23,7 @@ char message[MAX_REGISTER_PACKET_LEN];
 char packetBuffer[MAX_REGISTER_PACKET_LEN];
 unsigned char sendBuffer[MAX_REGISTER_PACKET_LEN];
 unsigned int localPort;
-int r, packetsize;
+int r, packetSize;
 uint16_t t;
 bool game_started; // do wykorzystanie na zasadzie if game_started ==  True ... else ...
 
@@ -68,8 +69,8 @@ void fillMessageBuffer(const Header *header, uint8_t *buffer) {
 
 }
 void sendRegisterMsg(Header header, uint8_t *buffer){
-    memset(&header, 0, sizeof(Header));
-    header = { .msg_type = REGISTER_MSG_TYPE, .id = CLIENT_ID, .retr_flag = 0, .ack_flag = 0, .p_type = EMPTY_PACKAGE_TYPE };
+   memset(&header, 0, sizeof(Header));
+   header = { .msg_type = REGISTER_MSG_TYPE, .id = CLIENT_ID, .retr_flag = 0, .ack_flag = 0, .p_type = EMPTY_PACKAGE_TYPE };
 
    buffer[0] = (header.msg_type << 5) | (header.id << 2) | (header.retr_flag << 1) | header.ack_flag;
    buffer[1] = (header.p_type << 6);
@@ -90,37 +91,29 @@ void sendRegisterMsg(Header header, uint8_t *buffer){
     last_serv_comm_time = ZsutMillis();
 }
 
-//void recvseqelement(uint8_t *sequence, uint16_t max_len){
-//    packetsize = Udp.parsePacket();
-//    if(packetsize){
-//        Serial.print(F("DEBUG: received packet the size of: ");
-//        Serial.print(packetsize);
-//
-//        if(packetsize > MAX_REGISTER_PACKET_LEN){
-//            Serial.print(F("WARNING: UDP buffer size exceeded, received:"));
-//            Serial.println(packetSize);
-//        }
-//        r = Udp.read(packetBuffer, MAX_REGISTER_PACKET_LEN);
-//        if(MAX_REGISTER_PACKET_LEN >= packetsize){
-//            uint16_t bit_index = 0;
-//            Serial.println(F("Received data: "))
-//              for (int i = 0; i < packetsize; i++){
-//                  for (int j = 7; j >= 0; j--){
-//                      if (bit_index < max_len){
-//                              sequence[bit_index] = (packetBuffer[i] >> j) & 1;
-//                                bit_index++;
-//                          }
-//                      else{
-//                          break;
-//                          }
-//                    }
-//                    if(bit_index >= max_len) break;
-//              }
-//                  Serial.println(F("received bit sequence: "));
-//
-//       }
-//    }
-//}
+void recvSeqElement(uint16_t sequence, uint16_t *tossCount) {
+    memset(packetBuffer, 0, MAX_REGISTER_PACKET_LEN);
+    packetSize = Udp.parsePacket();
+    if (packetSize) {
+        Serial.print(F("DEBUG: received packet the size of: "));
+        Serial.print(packetSize);
+
+
+        if (packetSize > MAX_REGISTER_PACKET_LEN) {
+            Serial.print(F("WARNING: UDP buffer size exceeded, received:"));
+            Serial.println(packetSize);
+        }
+        r = Udp.read(packetBuffer, MAX_REGISTER_PACKET_LEN);
+//        Serial.println(F("Received data: "))
+
+        sequence = (sequence << 1) | (packetBuffer & 0x1);
+        (*tossCount)++;
+
+        Serial.println(F("received bit sequence: "));
+    }
+}
+
+
 
 
 void setup(){
@@ -149,6 +142,19 @@ void setup(){
 
 
 void loop(){
-//    Serial.println(F("LOOP"));
+    recvSeqElement(sendBuffer);
+    packetSize=Udp.parsePacket();
+    if(packetSize){
+        Serial.pritln(F("DEBUG: Received the packet size of: "));
+        Serial.println(F(sizeof(packetSize)));
+
+        if(packetSize > MAX_REGISTER_PACKET_LEN){
+        Serial.println(F("WARNING: UDP buffer exceeded, got: "));
+        Serial.println(F(sizeof(packetSize)));
+        }
+
+        r=Udp.read(packetBuffer, MAX_REGISTER_PACKET_LEN);
+
+    }
 
 }
